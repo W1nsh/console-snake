@@ -59,7 +59,6 @@ def move(screen, snake, move_to: str, food_yx, score: int):
 		score += 1
 	screen.refresh()
 	res['is_game'] = True
-	res['snake'] = snake
 	res['score'] = score
 	return res
 	
@@ -100,7 +99,6 @@ def game(screen):
 			food_yx, time_spawn_food = generate_food(screen, snake)
 		game_progress = move(screen, snake, move_to, food_yx, score)
 		is_game = game_progress['is_game']
-		snake = game_progress.get('snake', False)
 		score = game_progress.get('score', False)
 
 
