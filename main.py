@@ -1,5 +1,9 @@
-import curses, time, random
-import config
+import time
+import random
+import json
+
+import curses
+
 
 def spawn_snake(screen, border_values: dict):
 	snake_line = 10
@@ -133,9 +137,9 @@ def food_del(screen, food_yx: tuple[int, int]):
 	screen.refresh()
 
 
-def food_time(time_spawn_food: int):
+def food_time(time_spawn_food: int, time_live_of_food: int) -> bool:
 	current_time = time.time()
-	if current_time - time_spawn_food > 15:
+	if current_time - time_spawn_food > time_live_of_food:
 		return True
 	return False
 
@@ -182,8 +186,8 @@ def graphic_scorer(screen, score: int=0):
 	screen.refresh()
 
 
-def configer_color_theme():
-	colors_for_themes = {
+def user_configer() -> int:
+	colors_for_user_themes = {
 		'black': curses.COLOR_BLACK,
 		'blue': curses.COLOR_BLUE,
 		'cyan': curses.COLOR_CYAN,
@@ -193,37 +197,44 @@ def configer_color_theme():
 		'white': curses.COLOR_WHITE,
 		'yellow': curses.COLOR_YELLOW
 	}
-	curses.init_pair(1, 
-				colors_for_themes.get(config.base_of_color_theme, curses.COLOR_MAGENTA), 
-				colors_for_themes.get(config.background_of_color_theme, curses.COLOR_BLACK))
+	with open('user_config.json', 'r') as f:
+		user_config = json.load(f)
+		curses.init_pair(
+			1, 
+			colors_for_user_themes.get(user_config.get('main_color_of_theme', None), curses.COLOR_MAGENTA), 
+			colors_for_user_themes.get(user_config.get('background_color_theme', None), curses.COLOR_BLACK)
+			)
+		time_live_of_food = user_config.get('time_live_of_food', None)
+	return time_live_of_food
 
 
-def game(screen):
+def game(screen, time_live_of_food: int):
 	border_values = graphic_border(screen)
 	is_game = True
 	snake = spawn_snake(screen, border_values)
 	generated_first_food = False
 	time_spawn_food = 0
 	move_to = 'right'
+	score = 0
 	while is_game:
 		move_to = change_move_to(screen, move_to)
-		if food_time(time_spawn_food):
+		if food_time(time_spawn_food, time_live_of_food):
 			if generated_first_food:
 				food_del(screen, food_yx)
 			else:
 				generated_first_food = True
 			food_yx, time_spawn_food = generate_food(screen, snake, border_values)
-		game_progress = move(screen, snake, move_to, food_yx, border_values)
+		game_progress = move(screen, snake, move_to, food_yx, border_values, score)
 		is_game = game_progress['is_game']
 		snake = game_progress.get('snake', snake)
 		score = game_progress.get('score', 0)
 
 
 def main(screen):
-	configer_color_theme()
+	time_live_of_food = user_configer()
 	curses.update_lines_cols()
 	curses.curs_set(0)
-	game(screen)
+	game(screen, time_live_of_food)
 	
 
 if __name__ == '__main__':
