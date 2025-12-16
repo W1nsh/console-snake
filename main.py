@@ -5,160 +5,32 @@ import json
 import curses
 
 
-def spawn_snake(screen, border_values: dict):
-	snake_line = 10
-	beginning_body = border_values['left'] + 1
-	end_body = beginning_body + 3
-	graphic_spawn_snake(screen, snake_line, beginning_body, end_body)
-	snake = logic_spawn_snake(snake_line, beginning_body, end_body)
-	return snake
-
-
-def graphic_spawn_snake(screen, snake_line: int, beginning_body: int, end_body: int):
-	for i in range(beginning_body, end_body):
-		screen.addch(snake_line, i, curses.ACS_BLOCK, curses.color_pair(1))
-		screen.refresh()
-		time.sleep(0.1)
-
-
-def logic_spawn_snake(snake_line: int, beginning_body: int, end_body: int):
-	return [(snake_line, i) for i in range(beginning_body, end_body)]
-
-
-def change_move_to(screen, move_to: str):
-	screen.timeout(100)
-	ascii_code = screen.getch()
-	match ascii_code:
-		case curses.KEY_UP:
-			move_to = 'up' if move_to != 'down' else move_to
-		case curses.KEY_DOWN:
-			move_to = 'down' if move_to != 'up' else move_to
-		case curses.KEY_LEFT:
-			move_to = 'left' if move_to != 'right' else move_to
-		case curses.KEY_RIGHT:
-			move_to = 'right' if move_to != 'left' else move_to
-	return move_to
-
-
-def generate_food(screen, snake: list[tuple[int, int]], border_values: dict):
+# graphic
+def snake_move_animation(screen: curses.window, snake: list[tuple[int, int]], tail: tuple[int, int]) -> None:
 	cp = curses.color_pair(1)
-
-	min_y = border_values['up'] + 1
-	max_y = border_values['down'] - 1
-	min_x = border_values['left'] + 1
-	max_x = border_values['right'] - 1
-
-	while True:
-		food_y = random.randint(min_y, max_y)
-		food_x = random.randint(min_x, max_x)
-		food_yx = (food_y, food_x)
-		if food_yx not in snake:
-			screen.addch(food_y, food_x, curses.ACS_DIAMOND, cp)
-			screen.refresh()
-			time_spawn_food = time.time()
-			return food_yx, time_spawn_food
+	for y, x in snake:
+		screen.addch(y, x, curses.ACS_BLOCK, cp)
+	if tail is not None:
+		screen.addch(*tail, ' ')
 
 
-def move(
-		screen, 
-		snake: list[tuple[int, int]], 
-		move_to: str, 
-		food_yx: tuple[int, int], 
-		border_values: dict,
-		score: int=0 
-		) -> dict:
-	res = {}
-	head_y, head_x = snake[-1]
-	old_tail_y, old_tail_x = snake[0]
+def game_over_graphic(screen: curses.window, score: int, game_over_yx: tuple[int, int], project_name_yx: tuple[int, int]) -> None:
 	cp = curses.color_pair(1)
-	match move_to:
-		case 'up':
-			new_head = (head_y - 1, head_x)
-		case 'down':
-			new_head = (head_y + 1, head_x)
-		case 'left':
-			new_head = (head_y, head_x - 1)
-		case 'right':
-			new_head = (head_y, head_x + 1)
-
-	if is_game_over(new_head, snake, border_values):
-		graphic_game_over(screen, score)
-		res['is_game'] = False
-		return res
-	res['is_game'] = True
-	
-	snake.append(new_head)
-	screen.addch(new_head[0], new_head[1], curses.ACS_BLOCK, cp)
-
-	if new_head != food_yx:
-		snake.pop(0)
-		screen.addch(old_tail_y, old_tail_x, ' ')
-	else:
-		score += 1
-		graphic_scorer(screen, score)
-
-	screen.refresh()
-	res['score'] = score
-	res['snake'] = snake
-	return res
-
-
-def graphic_game_over(screen, score: int):
+	y, x = game_over_yx
 	screen.clear()
-	screen.addstr("Game Over.\n", curses.color_pair(1))
-	screen.addstr(str(score), curses.color_pair(1))
-	screen.refresh()
-	time.sleep(3)
-	screen.timeout(-1)
-	screen.getch()
+	draw_project_name(screen, project_name_yx)
+	game_over_text = 'Game over.'
+	score_text = f'Score: {score}.'
+	screen.addstr(y, x, game_over_text, cp)
+	screen.addstr(y + 2, x, score_text, cp)
 
-def is_game_over(
-		new_head: tuple[int, int], 
-		snake: list[tuple[int, int]], 
-		border_values: dict
-		) -> bool:
-	y, x = new_head
 
+def border_graphic(screen: curses.window, border_values: dict[str, int]):
+	cp = curses.color_pair(1)
 	u = border_values['up']
 	d = border_values['down']
 	r = border_values['right']
 	l = border_values['left']
-
-	return (
-		new_head in snake or 
-		y in (u, d) or
-		x in (l, r)
-		)
-
-
-def food_del(screen, food_yx: tuple[int, int]):
-	food_y, food_x = food_yx
-	screen.addch(food_y, food_x, ' ')
-	screen.refresh()
-
-
-def food_time(time_spawn_food: int, time_live_of_food: int) -> bool:
-	current_time = time.time()
-	if current_time - time_spawn_food > time_live_of_food:
-		return True
-	return False
-
-
-def graphic_border(screen):
-	cp = curses.color_pair(1)
-	border_values = {
-	'up': 4,
-	'down': curses.LINES - 2,
-	'right': curses.COLS - 2,
-	'left': 2
-	}
-
-	u, d, r, l = border_values['up'], border_values['down'], border_values['right'], border_values['left']
-	text_line = 2
-	text_col = 3
-
-	screen.addstr(text_line, text_col, 'Console-Snake. Developed by W1nsh.', cp)
-	graphic_scorer(screen)
 
 	screen.addch(u, l, curses.ACS_ULCORNER, cp)
 	screen.addch(u, r, curses.ACS_URCORNER, cp)
@@ -173,21 +45,133 @@ def graphic_border(screen):
 		screen.addch(i, l, curses.ACS_VLINE, cp)
 		screen.addch(i, r, curses.ACS_VLINE, cp)
 
-	screen.refresh()
-	return border_values
 
-
-
-def graphic_scorer(screen, score: int=0):
+def draw_project_name(screen: curses.window, project_name_yx: tuple[int, int]) -> None:
+	y, x = project_name_yx
 	cp = curses.color_pair(1)
-	text_line = 2
-	start_text_col = 47
-	screen.addstr(text_line, start_text_col, f'Score: {score}', cp)
-	screen.refresh()
+	project_name_text = 'Console-Snake. Developed by W1nsh.'
+	screen.addstr(y, x, project_name_text, cp)
 
 
-def user_configer() -> int:
-	colors_for_user_themes = {
+def draw_score(screen: curses.window, score: int, score_yx: tuple[int, int]) -> None:
+	y, x = score_yx
+	cp = curses.color_pair(1)
+	score_text = f'Score: {score}'
+	screen.addstr(y, x, score_text, cp)
+
+
+def draw_and_del_food(screen: curses.window, foods: list[tuple[int, int]]):
+	cp = curses.color_pair(1)
+	food_y, food_x = foods[-1]
+	if len(foods) == 2:
+		past_food_y, past_food_x = foods[0]
+		screen.addch(past_food_y, past_food_x, ' ')
+	screen.addch(food_y, food_x, curses.ACS_DIAMOND, cp)
+
+
+
+# logic
+def game_over(screen: curses.window):
+	time.sleep(3)
+	screen.timeout(-1)
+	screen.getch()
+	return False
+
+
+def snake_is_die(snake: list[tuple[int, int]], border_values: dict[str, int]) -> bool:
+	return (
+		snake[-1] in snake[:-1] or
+		snake[-1][0] <= border_values['up'] or
+		snake[-1][0] >= border_values['down'] or
+		snake[-1][1] <= border_values['left'] or
+		snake[-1][1] >= border_values['right']
+	)
+
+
+def move(snake: list[tuple[int, int]], direction: str) -> list[tuple[int, int]]:
+	head_y, head_x = snake[-1]
+	cords = {
+		'up': (head_y - 1, head_x),
+		'down': (head_y + 1, head_x),
+		'left': (head_y, head_x - 1),
+		'right': (head_y, head_x + 1)
+	}
+	snake.append(cords[direction])
+	return snake
+
+
+def change_direction(ascii_code: int, direction: str):
+	values_ascii_codes = {
+		258: 'down',
+		259: 'up',
+		260: 'left',
+		261: 'right'
+	}
+	opposites = {
+		'up': 'down',
+		'down': 'up',
+		'left': 'right',
+		'right': 'left'
+	}
+	new_direction = values_ascii_codes.get(ascii_code, None)
+	opposite_new_direction = opposites.get(new_direction, None)
+	if opposite_new_direction == direction or opposite_new_direction is None:
+		return direction
+	return new_direction
+
+
+def input_reader(screen: curses.window, tick: int) -> int:
+	screen.timeout(tick)
+	ascii_code = screen.getch()
+	return	ascii_code
+
+
+def scorer(score: int, snake: list[tuple[int, int]], foods: list[tuple[int, int]]) -> list[tuple[int, int]] | int:
+	tail = None
+	if foods[-1] == snake[-1]:
+		score += 1
+	else:
+		tail = snake.pop(0)
+	return snake, score, tail
+
+def need_generation_food(time_food_generation: int, food_life_time: int):
+	return time.time() - time_food_generation > food_life_time
+
+
+def create_snake(start_snake_yx: tuple[int, int], snake_length: int):
+	y, x = start_snake_yx
+	snake = []
+	for i in range(x, x + snake_length):
+		el = (y, i)
+		snake.append(el)
+	return snake
+
+
+
+def food_generator(snake: tuple[int, int], border_values: dict[str, int], foods: list[tuple[int, int]]):
+	food_y = random.randint(border_values['up'] + 1, border_values['down'] - 1)
+	food_x = random.randint(border_values['left'] + 1, border_values['right'] - 1)
+	food_yx = (food_y, food_x)
+	if food_yx in snake:
+		return food_generator(snake, border_values, foods)
+	time_food_generation = time.time()
+	if len(foods) == 2:
+		foods.pop(0)
+	foods.append(food_yx)
+	return foods, time_food_generation
+
+
+def border(border_distance: dict[str, int], screen_size: tuple[int, int]):
+	return {
+		'up': border_distance['up'],
+		'down': screen_size[0] - border_distance['down'],
+		'right': screen_size[1] - border_distance['right'],
+		'left': border_distance['left']
+	}
+
+
+def set_colors(main_color: str, background_color: str) -> None:
+	colors = {
 		'black': curses.COLOR_BLACK,
 		'blue': curses.COLOR_BLUE,
 		'cyan': curses.COLOR_CYAN,
@@ -197,45 +181,72 @@ def user_configer() -> int:
 		'white': curses.COLOR_WHITE,
 		'yellow': curses.COLOR_YELLOW
 	}
-	with open('user_config.json', 'r') as f:
-		user_config = json.load(f)
-		curses.init_pair(
-			1, 
-			colors_for_user_themes.get(user_config.get('main_color_of_theme', None), curses.COLOR_MAGENTA), 
-			colors_for_user_themes.get(user_config.get('background_color_theme', None), curses.COLOR_BLACK)
-			)
-		time_live_of_food = user_config.get('time_live_of_food', None)
-	return time_live_of_food
+	curses.init_pair(
+		1, 
+		colors.get(main_color),
+		colors.get(background_color)
+	)
 
 
-def game(screen, time_live_of_food: int):
-	border_values = graphic_border(screen)
-	is_game = True
-	snake = spawn_snake(screen, border_values)
-	generated_first_food = False
-	time_spawn_food = 0
-	move_to = 'right'
-	score = 0
-	while is_game:
-		move_to = change_move_to(screen, move_to)
-		if food_time(time_spawn_food, time_live_of_food):
-			if generated_first_food:
-				food_del(screen, food_yx)
-			else:
-				generated_first_food = True
-			food_yx, time_spawn_food = generate_food(screen, snake, border_values)
-		game_progress = move(screen, snake, move_to, food_yx, border_values, score)
-		is_game = game_progress['is_game']
-		snake = game_progress.get('snake', snake)
-		score = game_progress.get('score', 0)
+def config_reader() -> int: # will upd
+	with open('config.json', 'r') as f:
+		config = json.load(f)
+
+		main_color = config['main_color']
+		background_color = config['background_color']
+
+		food_life_time = config['time']['food_life_time_sec']
+		tick = config['time']['tick_ms']
+
+		border_distance = config['border_distance']
+
+		project_name_yx = (config['text']['project_name']['y'], config['text']['project_name']['x'])
+		score_yx = (config['text']['score']['y'], config['text']['score']['x'])
+		game_over_yx = (config['text']['game_over']['y'], config['text']['game_over']['x'])
+
+		start_snake_yx = (config['snake']['start_cords']['y'], config['snake']['start_cords']['x'])
+		snake_length = config['snake']['length']
+
+	return food_life_time, tick, border_distance, project_name_yx, score_yx, main_color, background_color, start_snake_yx, snake_length, game_over_yx
 
 
-def main(screen):
-	time_live_of_food = user_configer()
+def main(screen: curses.window):
 	curses.update_lines_cols()
 	curses.curs_set(0)
-	game(screen, time_live_of_food)
+	food_life_time, tick, border_distance, project_name_yx, score_yx, main_color, background_color, start_snake_yx, snake_length, game_over_yx = config_reader()
+	set_colors(main_color, background_color)	
+	game(screen, food_life_time, tick, border_distance, project_name_yx, score_yx, start_snake_yx, snake_length, game_over_yx)
+
+
+def game(screen: curses.window, food_life_time: int, tick: int, border_distance: dict[str, int], project_name_yx: tuple[int, int], score_yx: tuple[int, int], start_snake_yx: tuple[int, int], snake_length: int, game_over_yx: tuple[int, int]):
+	screen_size = (curses.LINES, curses.COLS)
+	is_game = True
+	border_values = border(border_distance, screen_size)
+	snake = create_snake(start_snake_yx, snake_length)
+	score = 0
+	time_food_generation = 0
+	foods = []
+	direction = 'right'
+	border_graphic(screen, border_values)
+	draw_project_name(screen, project_name_yx)
 	
+	while is_game:
+		draw_score(screen, score, score_yx)
+		if need_generation_food(time_food_generation, food_life_time):
+			foods, time_food_generation = food_generator(snake, border_values, foods)
+			draw_and_del_food(screen, foods)
+		ascii_code = input_reader(screen, tick)
+		direction = change_direction(ascii_code, direction)
+		snake = move(snake, direction)
+		snake, score, tail = scorer(score, snake, foods)
+		snake_move_animation(screen, snake, tail)
+		if snake_is_die(snake, border_values):
+			game_over_graphic(screen, score, game_over_yx, project_name_yx)
+			screen.refresh()
+			is_game = game_over(screen)
+
+		screen.refresh()
+
 
 if __name__ == '__main__':
 	curses.wrapper(main)

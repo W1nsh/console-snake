@@ -1,0 +1,35 @@
+{
+	"main_color": "magenta",
+	"background_color": "black",
+	"time": {
+		"tick_ms": 100,
+		"food_life_time_sec": 15
+	},
+	"border_distance": {
+		"up": 5,
+		"down": 2,
+		"right": 2,
+		"left": 2
+	},
+	"text": {
+		"project_name": {
+			"y": 2,
+			"x": 3
+		},
+		"score": {
+			"y": 2,
+			"x": 47
+		},
+		"game_over": {
+			"y": 7,
+			"x": 3
+		}
+	},
+	"snake": {
+		"start_cords": {
+			"y": 10,
+			"x": 3
+		},
+		"length": 3
+	}
+}
